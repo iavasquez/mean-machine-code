@@ -8,6 +8,7 @@ var concat     = require('gulp-concat');
 var uglify     = require('gulp-uglify');
 var ngAnnotate = require('gulp-ng-annotate');
 var nodemon    = require('gulp-nodemon');
+var stylish = require('jshint-stylish');
 
 // define a task called css
 gulp.task('css', function() {
@@ -19,12 +20,25 @@ gulp.task('css', function() {
     .pipe(gulp.dest('public/assets/css'));
 });
 
-// task for linting js files
-gulp.task('js', function() {
-  return gulp.src(['server.js', 'public/app/*.js', 'public/app/**/*.js'])
-    .pipe(jshint())
-    .pipe(jshint.reporter('default'));
+// define a task for linting just server-side js files using the node option
+// using node:true suppresses warnings that do not apply to node/express js
+gulp.task('jssvr', function() {
+  return gulp.src(['server.js'])
+    .pipe(jshint({node: true}))
+    .pipe(jshint.reporter(stylish));
 });
+
+// define a task for linting client-side js files using browser option
+// using browser: true suppresses warnings that do not apply in the browser
+gulp.task('jsclient', function() {
+  return gulp.src(['public/app/*.js', 'public/app/**/*.js'])
+    .pipe(jshint({browser: true}))
+    .pipe(jshint.reporter(stylish));
+});
+
+
+// task for linting all js files by calling both server and client lint js tasks
+gulp.task('js', ['jsvr', 'jsclient']);
 
 // task to lint, minify, and concat frontend files
 gulp.task('scripts', function() {
@@ -55,16 +69,14 @@ gulp.task('watch', function() {
   gulp.watch(['server.js', 'public/app/*.js', 'public/app/**/*.js'], ['js', 'angular']);
 });
 
+// nodemon restarts app after any change to file types in the ext: element
+// nodemon will call the tasks in the tasks: array on every restart
 gulp.task('nodemon', function() {
   nodemon({
-    script: 'server.js',
-    ext: 'js less html'
-  })
-    .on('start', ['watch'])
-    .on('change', ['watch'])
-    .on('restart', function() {
-      console.log('Restarted!');
-    });
+    script: './bin/www',
+    ext: 'js less html',
+    tasks: ['js','angular','styles']
+  });
 });
 
 gulp.task('default', ['nodemon']);
